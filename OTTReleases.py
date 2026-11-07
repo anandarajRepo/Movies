@@ -52,7 +52,7 @@ QUERY = """
 query GetTitles($country: Country!, $language: Language!, $first: Int!,
                 $after: String, $filter: TitleFilter) {
   popularTitles(country: $country, first: $first, after: $after,
-                filter: $filter, sortBy: RELEASE_YEAR, sortAsc: false) {
+                filter: $filter) {
     pageInfo { hasNextPage endCursor }
     edges {
       node {
@@ -62,7 +62,6 @@ query GetTitles($country: Country!, $language: Language!, $first: Int!,
             title
             originalReleaseDate
             originalReleaseYear
-            originalLanguage
             fullPath
             productionCountries
           }
@@ -88,7 +87,9 @@ def fetch_page(session, variables, retries=3):
             if resp.status_code == 429:
                 time.sleep(2 * attempt)
                 continue
-            resp.raise_for_status()
+            if not resp.ok:
+                # JustWatch returns the GraphQL validation message in the body
+                raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:500]}")
             data = resp.json()
             if data.get("errors"):
                 raise RuntimeError(data["errors"][0].get("message", "GraphQL error"))
@@ -111,7 +112,6 @@ def build_filter(args):
     flt = {
         "objectTypes": ["MOVIE"],
         "productionCountries": ["US"],
-        "monetizationTypes": MONETIZATION_TYPES,
     }
     if args.year:
         flt["releaseYear"] = {"min": args.year, "max": args.year}

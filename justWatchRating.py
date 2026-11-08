@@ -22,7 +22,7 @@ Usage:
 
 Requires: pip install requests
 Note: JustWatch's GraphQL API is unofficial and may change (field names such
-as interactions.likelistAdds / dislikelistAdds); respect its terms of use.
+as interactions.likelistAdditions / dislikelistAdditions); respect its terms of use.
 """
 
 import argparse
@@ -66,7 +66,7 @@ query GetTitles($country: Country!, $language: Language!, $first: Int!,
             originalReleaseDate
             originalReleaseYear
             fullPath
-            interactions { likelistAdds dislikelistAdds }
+            interactions { likelistAdditions dislikelistAdditions }
           }
           offers(country: $country, platform: WEB) {
             monetizationType
@@ -145,8 +145,8 @@ def collect(args):
             seen.add(node["id"])
 
             inter = content.get("interactions") or {}
-            likes = inter.get("likelistAdds") or 0
-            dislikes = inter.get("dislikelistAdds") or 0
+            likes = inter.get("likelistAdditions") or 0
+            dislikes = inter.get("dislikelistAdditions") or 0
             if likes < args.min_likes or not dislike_ratio_ok(likes, dislikes, args.ratio):
                 continue
 

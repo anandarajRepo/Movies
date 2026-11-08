@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-justWatchRating.py - find well-liked movies on JustWatch India that are
+JustWatchRating.py - find well-liked movies on JustWatch India that are
 streaming on at least one Indian OTT service.
 
 A movie qualifies when:
@@ -12,13 +12,13 @@ Results are sorted year-wise and month-wise (newest first by default) and
 printed grouped under "YYYY - Month" headings.
 
 Usage:
-    python justWatchRating.py                    # all years, default 10% ratio
-    python justWatchRating.py --year 2025        # a single year
-    python justWatchRating.py --min-likes 100    # ignore titles with few votes
-    python justWatchRating.py --ratio 0.05       # stricter: dislikes <= 5% of likes
-    python justWatchRating.py --services netflix,prime
-    python justWatchRating.py --oldest-first
-    python justWatchRating.py --csv out.csv --json out.json
+    python JustWatchRating.py                    # all years, default 10% ratio
+    python JustWatchRating.py --year 2025        # a single year
+    python JustWatchRating.py --min-likes 100    # ignore titles with few votes
+    python JustWatchRating.py --ratio 0.05       # stricter: dislikes <= 5% of likes
+    python JustWatchRating.py --services netflix,prime
+    python JustWatchRating.py --oldest-first
+    python JustWatchRating.py --csv out.csv --json out.json
 
 Requires: pip install requests
 Note: JustWatch's GraphQL API is unofficial and may change (field names such

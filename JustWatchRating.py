@@ -41,6 +41,11 @@ COUNTRY = "IN"
 LANGUAGE = "en"
 PAGE_SIZE = 100
 
+# ---- Edit these to change the defaults (command-line flags still override) ----
+YEAR = None                 # e.g. 2025, or None for all years
+MAX_DISLIKE_PERCENT = 10    # dislikes must be <= this % of likes
+# -------------------------------------------------------------------------------
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
@@ -221,11 +226,12 @@ def write_csv(movies, path):
 def main():
     p = argparse.ArgumentParser(
         description="Movies on Indian OTT where dislikes are <= 10%% of likes (via JustWatch).")
-    p.add_argument("--ratio", type=float, default=0.10,
-                   help="max dislikes/likes ratio (default 0.10 = 10%%)")
+    p.add_argument("--ratio", type=float, default=MAX_DISLIKE_PERCENT / 100,
+                   help="max dislikes/likes ratio (default from MAX_DISLIKE_PERCENT in script)")
     p.add_argument("--min-likes", type=int, default=1,
                    help="ignore titles with fewer likes than this (default 1)")
-    p.add_argument("--year", type=int, help="only movies released in this year")
+    p.add_argument("--year", type=int, default=YEAR,
+                   help="only movies released in this year (default from YEAR in script)")
     p.add_argument("--services", help="comma-separated OTT name filter, e.g. netflix,prime")
     p.add_argument("--max-pages", type=int, default=5, help="page limit, 0 = unlimited (default 5)")
     p.add_argument("--oldest-first", action="store_true", help="sort oldest year/month first")

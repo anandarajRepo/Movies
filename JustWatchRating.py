@@ -4,7 +4,7 @@ JustWatchRating.py - find well-liked movies on JustWatch India that are
 streaming on at least one Indian OTT service.
 
 A movie qualifies when:
-  * dislikes <= 10% of likes   (dislikes / likes <= 0.10)
+  * dislikes <= 50% of likes by default (MAX_DISLIKE_PERCENT; dislikes / likes <= 0.50)
   * it is offered in the Indian region (country IN) on at least one OTT
     service (subscription / free / ad-supported by default)
 
@@ -12,7 +12,7 @@ Results are sorted year-wise and month-wise (newest first by default) and
 printed grouped under "YYYY - Month" headings.
 
 Usage:
-    python JustWatchRating.py                    # all years, default 10% ratio
+    python JustWatchRating.py                    # all years, default 50% ratio
     python JustWatchRating.py --year 2025        # a single year
     python JustWatchRating.py --min-likes 100    # ignore titles with few votes
     python JustWatchRating.py --ratio 0.05       # stricter: dislikes <= 5% of likes
@@ -43,7 +43,7 @@ PAGE_SIZE = 100
 
 # ---- Edit these to change the defaults (command-line flags still override) ----
 YEAR = None                 # e.g. 2025, or None for all years
-MAX_DISLIKE_PERCENT = 10    # dislikes must be <= this % of likes
+MAX_DISLIKE_PERCENT = 50    # dislikes must be <= this % of likes
 # -------------------------------------------------------------------------------
 
 HEADERS = {
@@ -71,6 +71,7 @@ query GetTitles($country: Country!, $language: Language!, $first: Int!,
             originalReleaseDate
             originalReleaseYear
             fullPath
+            externalIds { imdbId }
             interactions { likelistAdditions dislikelistAdditions }
           }
           offers(country: $country, platform: WEB) {
@@ -120,7 +121,7 @@ def parse_date(content):
 
 
 def dislike_ratio_ok(likes, dislikes, ratio):
-    """True when dislikes are at most `ratio` (default 10%) of likes."""
+    """True when dislikes are at most `ratio` (default MAX_DISLIKE_PERCENT) of likes."""
     return likes > 0 and dislikes <= ratio * likes
 
 
@@ -167,6 +168,7 @@ def collect(args):
                 continue
 
             year, month = parse_date(content)
+            imdb_id = (content.get("externalIds") or {}).get("imdbId")
             movies.append({
                 "title": content["title"],
                 "year": year,
@@ -175,6 +177,7 @@ def collect(args):
                 "likes": likes,
                 "dislikes": dislikes,
                 "dislike_pct": round(100.0 * dislikes / likes, 2),
+                "imdb_url": (f"https://www.imdb.com/title/{imdb_id}/" if imdb_id else ""),
                 "justwatch_url": SITE_URL + content["fullPath"] if content.get("fullPath") else "",
                 "services": [{"ott": k, "url": v} for k, v in sorted(services.items())],
             })
@@ -207,6 +210,7 @@ def print_report(movies, ratio):
         for m in items:
             print(f"  {m['title']}  [{m['release_date'] or year}]  "
                   f"likes={m['likes']} dislikes={m['dislikes']} ({m['dislike_pct']}%)")
+            print(f"       IMDb: {m['imdb_url'] or 'n/a'}")
             for s in m["services"]:
                 print(f"       - {s['ott']}: {s['url'] or m['justwatch_url']}")
 
@@ -215,17 +219,17 @@ def write_csv(movies, path):
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(["year", "month", "title", "release_date", "likes", "dislikes",
-                    "dislike_pct", "ott_service", "link", "justwatch_url"])
+                    "dislike_pct", "ott_service", "link", "justwatch_url", "imdb_url"])
         for m in movies:
             for s in m["services"]:
                 w.writerow([m["year"], month_label(m["month"]), m["title"], m["release_date"],
                             m["likes"], m["dislikes"], m["dislike_pct"], s["ott"],
-                            s["url"] or m["justwatch_url"], m["justwatch_url"]])
+                            s["url"] or m["justwatch_url"], m["justwatch_url"], m["imdb_url"]])
 
 
 def main():
     p = argparse.ArgumentParser(
-        description="Movies on Indian OTT where dislikes are <= 10%% of likes (via JustWatch).")
+        description="Movies on Indian OTT where dislikes are <= MAX_DISLIKE_PERCENT%% of likes (via JustWatch).")
     p.add_argument("--ratio", type=float, default=MAX_DISLIKE_PERCENT / 100,
                    help="max dislikes/likes ratio (default from MAX_DISLIKE_PERCENT in script)")
     p.add_argument("--min-likes", type=int, default=1,

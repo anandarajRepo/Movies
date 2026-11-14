@@ -5,6 +5,7 @@ streaming on at least one Indian OTT service.
 
 A movie qualifies when:
   * dislikes <= 50% of likes by default (MAX_DISLIKE_PERCENT; dislikes / likes <= 0.50)
+  * at least 50 dislikes by default (MIN_DISLIKES; --min-dislikes overrides)
   * it is offered in the Indian region (country IN) on at least one OTT
     service (subscription / free / ad-supported by default)
 
@@ -44,6 +45,7 @@ PAGE_SIZE = 100
 # ---- Edit these to change the defaults (command-line flags still override) ----
 YEAR = None                 # e.g. 2025, or None for all years
 MAX_DISLIKE_PERCENT = 50    # dislikes must be <= this % of likes
+MIN_DISLIKES = 50           # titles need at least this many dislikes (absolute count)
 # -------------------------------------------------------------------------------
 
 HEADERS = {
@@ -153,7 +155,9 @@ def collect(args):
             inter = content.get("interactions") or {}
             likes = inter.get("likelistAdditions") or 0
             dislikes = inter.get("dislikelistAdditions") or 0
-            if likes < args.min_likes or not dislike_ratio_ok(likes, dislikes, args.ratio):
+            if likes < args.min_likes or dislikes < args.min_dislikes:
+                continue
+            if not dislike_ratio_ok(likes, dislikes, args.ratio):
                 continue
 
             services = {}
@@ -197,11 +201,12 @@ def month_label(month):
     return month_name[month] if 1 <= month <= 12 else "Unknown month"
 
 
-def print_report(movies, ratio):
+def print_report(movies, ratio, min_dislikes=0):
     if not movies:
         print("No movies found matching the criteria.")
         return
-    print(f"\nMovies on Indian OTT with dislikes <= {ratio:.0%} of likes: {len(movies)}")
+    print(f"\nMovies on Indian OTT with dislikes <= {ratio:.0%} of likes "
+          f"and >= {min_dislikes} dislikes: {len(movies)}")
     groups = OrderedDict()
     for m in movies:
         groups.setdefault((m["year"], m["month"]), []).append(m)
@@ -209,7 +214,7 @@ def print_report(movies, ratio):
         print(f"\n=== {year or 'Unknown year'} - {month_label(month)} ({len(items)}) ===")
         for m in items:
             print(f"  {m['title']}  [{m['release_date'] or year}]  "
-                  f"likes={m['likes']} dislikes={m['dislikes']} ({m['dislike_pct']}%)")
+                  f"likes={m['likes']} dislikes={m['dislikes']} dislike%={m['dislike_pct']:.2f}%")
             print(f"       IMDb: {m['imdb_url'] or 'n/a'}")
             for s in m["services"]:
                 print(f"       - {s['ott']}: {s['url'] or m['justwatch_url']}")
@@ -234,6 +239,8 @@ def main():
                    help="max dislikes/likes ratio (default from MAX_DISLIKE_PERCENT in script)")
     p.add_argument("--min-likes", type=int, default=1,
                    help="ignore titles with fewer likes than this (default 1)")
+    p.add_argument("--min-dislikes", type=int, default=MIN_DISLIKES,
+                   help="ignore titles with fewer dislikes than this (default from MIN_DISLIKES in script)")
     p.add_argument("--year", type=int, default=YEAR,
                    help="only movies released in this year (default from YEAR in script)")
     p.add_argument("--services", help="comma-separated OTT name filter, e.g. netflix,prime")
@@ -248,7 +255,7 @@ def main():
     except Exception as exc:
         sys.exit(f"Failed to fetch data from JustWatch: {exc}")
 
-    print_report(movies, args.ratio)
+    print_report(movies, args.ratio, args.min_dislikes)
     if args.csv:
         write_csv(movies, args.csv)
         print(f"\nSaved CSV -> {args.csv}")
